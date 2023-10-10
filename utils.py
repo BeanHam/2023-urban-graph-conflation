@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import networkx as nx
 from torch.utils.data import Dataset
+from tqdm import tqdm
 
 # ---------------------
 # DuoGraph Data Loader
