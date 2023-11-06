@@ -11,62 +11,69 @@ from torch.utils.data import DataLoader
 from utils import *
 from model import *
 
+seed=816
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+
 def main():
 
     # ---------------------
     # parameters
     # ---------------------
     lr = 1e-2
-    epochs = 200
+    epochs = 100
     batch_size = 1
     pos_weights = 5
+    path = 'D:graph-conflation-data/'
     
     # ---------------------
     # load data
     # ---------------------
     print('Load Datasets...')
-    train_files = os.listdir('../graph-data/seattle-graphs/original/')
-    test_files = os.listdir('../graph-data/west-seattle-graphs/original/')
-    train_files, val_files = train_test_split(train_files, test_size=0.1, random_state=42)
+    files = os.listdir(path+'/graphs/osm/')
+    train_files, test_files = train_test_split(files, test_size=0.2, random_state=42)
+    train_files, val_files = train_test_split(train_files, test_size=0.2, random_state=42)
     
-    train_data = DuoGraphDataset('../graph-data/seattle-graphs/', train_files)
-    val_data = DuoGraphDataset('../graph-data/seattle-graphs/', val_files)
-    test_data = DuoGraphDataset('../graph-data/west-seattle-graphs/', test_files)
-        
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    val_dataloader = DataLoader(val_data, batch_size=batch_size, shuffle=True)
-    test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=True)    
+    # make datasets
+    train_data = GraphDataset(path, train_files)
+    val_data = GraphDataset(path, val_files)
+    test_data = GraphDataset(path, test_files)
+    
+    # data loader
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=False)
+    val_dataloader = DataLoader(val_data, batch_size=batch_size, shuffle=False)
+    test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=False)  
     
     # ---------------------
     #  models
     # ---------------------
     print('Load Model...')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model_del = GCN().to(device)
-    model_ins = GCN().to(device)
-    optimizer = torch.optim.Adam(list(model_del.parameters()) + list(model_ins.parameters()), lr=lr)
+    model_osm = GCN().to(device)
+    model_sdot = GCN().to(device)
+    optimizer = torch.optim.Adam(list(model_osm.parameters()) + list(model_sdot.parameters()), lr=lr)
     criterion= nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weights))
-    #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.98)
     es = EarlyStopping()
     
     # ---------------------
     # training
     # ---------------------    
     loss_track = []
-    for epoch in range(epochs):
+    for e in range(epochs):
         
         # ----------------
         # Training
         # ----------------
-        model_del.train()
-        model_ins.train()
-        DuoTrain(
+        model_osm.train()
+        model_sdot.train()
+        Train(
             train_dataloader, 
-            model_del,
-            model_ins,
-            optimizer,
-            criterion,
-            device
+            model_osm, 
+            model_sdot, 
+            optimizer, 
+            criterion
         )
             
         # ----------------
@@ -74,15 +81,13 @@ def main():
         # ----------------
         model_del.eval()
         model_ins.eval()
-        val_loss = DuoEvaluation(
+        val_loss = Eval(
             val_dataloader, 
-            model_del,
-            model_ins,
-            optimizer,
-            criterion,
-            device
-        )
-        loss_track.append(val_loss)
+            model_osm, 
+            model_sdot, 
+            criterion
+        )    
+        loss_tract.append(val_loss)
         
         # ----------------
         # Early Stop Check
@@ -93,9 +98,9 @@ def main():
             print(f' Validation Loss: {round(val_loss, 5)}')
             break
         if es.save_model:     
-            torch.save(model_del.state_dict(), f'model_states/DuoGraph_del_{lr}')
-            torch.save(model_ins.state_dict(), f'model_states/DuoGraph_ins_{lr}')
-            np.save(f'logs/DuoGraph_{lr}.npy', loss_track)
+            torch.save(model_osm.state_dict(), f'model_states/model_osm_{pos_weights}')
+            torch.save(model_sdot.state_dict(), f'model_states/model_sdot_{pos_weights}')
+            np.save(f'logs/val_losses_{pos_weights}.npy', loss_track)
         
         # ----------------
         # print val loss

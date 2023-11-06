@@ -1,9 +1,11 @@
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 
 seed=816
+np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
@@ -14,8 +16,8 @@ torch.cuda.manual_seed_all(seed)
 class GCN(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = GCNConv(1, 32)
-        self.conv2 = GCNConv(32, 64)
+        self.conv1 = GCNConv(2, 64)
+        self.conv2 = GCNConv(64, 128)
 
     def forward(self, edge_index, x):
 
