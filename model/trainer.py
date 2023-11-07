@@ -22,10 +22,10 @@ def main():
     # ---------------------
     # parameters
     # ---------------------
-    lr = 1e-2
+    lr = 2e-3
     epochs = 100
     batch_size = 1
-    pos_weights = 5
+    pos_weights = 1
     path = 'D:graph-conflation-data/'
     
     # ---------------------
@@ -61,7 +61,7 @@ def main():
     # training
     # ---------------------    
     loss_track = []
-    for e in range(epochs):
+    for epoch in range(epochs):
         
         # ----------------
         # Training
@@ -73,21 +73,23 @@ def main():
             model_osm, 
             model_sdot, 
             optimizer, 
-            criterion
+            criterion,
+            device
         )
             
         # ----------------
         # Validation
         # ----------------
-        model_del.eval()
-        model_ins.eval()
+        model_osm.eval()
+        model_sdot.eval()
         val_loss = Eval(
             val_dataloader, 
             model_osm, 
             model_sdot, 
-            criterion
+            criterion,
+            device
         )    
-        loss_tract.append(val_loss)
+        loss_track.append(val_loss)
         
         # ----------------
         # Early Stop Check

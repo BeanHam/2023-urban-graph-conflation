@@ -1,4 +1,5 @@
 import os
+import json
 import torch
 import numpy as np
 import networkx as nx
@@ -66,7 +67,12 @@ class GraphDataset(Dataset):
 # ---------------------
 # Trainer
 # ---------------------
-def Train(train_data, model_osm, model_sdot, optimizer, criterion):
+def Train(train_data, 
+          model_osm, 
+          model_sdot, 
+          optimizer, 
+          criterion, 
+          device):
     
     for i, batch in enumerate(tqdm(train_data)):
         
@@ -92,7 +98,11 @@ def Train(train_data, model_osm, model_sdot, optimizer, criterion):
 # ---------------------
 # Evaluation
 # ---------------------
-def Eval(val_data, model_osm, model_sdot, criterion):
+def Eval(val_data, 
+         model_osm, 
+         model_sdot, 
+         criterion, 
+         device):
 
     val_losses = []
     for i, batch in enumerate(val_data):
