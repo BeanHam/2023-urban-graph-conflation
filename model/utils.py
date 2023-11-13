@@ -88,8 +88,8 @@ def Train(train_data,
         
         # make prediction
         optimizer.zero_grad() 
-        out_osm = model_osm(graph_osm, osm_x)
-        out_sdot = model_sdot(graph_sdot, sdot_x)
+        out_osm = model_osm(osm_x, graph_osm)
+        out_sdot = model_sdot(sdot_x, graph_sdot)
         logits = torch.matmul(out_osm, out_sdot.T).flatten()
         loss = criterion(logits, labels)
         loss.backward() 
