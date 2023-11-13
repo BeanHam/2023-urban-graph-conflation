@@ -25,7 +25,7 @@ def main():
     lr = 2e-3
     epochs = 100
     batch_size = 1
-    pos_weights = 1
+    pos_weights = 7
     path = 'D:graph-conflation-data/'
     
     # ---------------------
@@ -55,7 +55,7 @@ def main():
     model_sdot = GCN().to(device)
     optimizer = torch.optim.Adam(list(model_osm.parameters()) + list(model_sdot.parameters()), lr=lr)
     criterion= nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weights))
-    es = EarlyStopping()
+    es = EarlyStopping(tolerance=10)
     
     # ---------------------
     # training

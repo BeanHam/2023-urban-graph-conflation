@@ -16,8 +16,8 @@ torch.cuda.manual_seed_all(seed)
 class GCN(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = GCNConv(2, 64)
-        self.conv2 = GCNConv(64, 128)
+        self.conv1 = GCNConv(2, 32)
+        self.conv2 = GCNConv(32, 64)
 
     def forward(self, edge_index, x):
 
