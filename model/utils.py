@@ -80,8 +80,8 @@ def Train(train_data,
         graph_osw, graph_osm, graph_sdot, osw_x, osm_x, sdot_x = batch
         graph_osw = graph_osw.squeeze_(0).to(device)
         labels = graph_osw.flatten()
-        graph_osm = graph_osm.squeeze_(0).to(device)
-        graph_sdot = graph_sdot.squeeze_(0).to(device)    
+        graph_osm = graph_osm.squeeze_(0).long().to(device)
+        graph_sdot = graph_sdot.squeeze_(0).long().to(device)
         osw_x = osw_x.squeeze_(0).to(device)
         osm_x = osm_x.squeeze_(0).to(device)
         sdot_x = sdot_x.squeeze_(0).to(device)
@@ -111,15 +111,15 @@ def Eval(val_data,
         graph_osw, graph_osm, graph_sdot, osw_x, osm_x, sdot_x = batch
         graph_osw = graph_osw.squeeze_(0).to(device)
         labels = graph_osw.flatten()
-        graph_osm = graph_osm.squeeze_(0).to(device)
-        graph_sdot = graph_sdot.squeeze_(0).to(device)    
+        graph_osm = graph_osm.squeeze_(0).long().to(device)
+        graph_sdot = graph_sdot.squeeze_(0).long().to(device)    
         osw_x = osw_x.squeeze_(0).to(device)
         osm_x = osm_x.squeeze_(0).to(device)
         sdot_x = sdot_x.squeeze_(0).to(device)
          
         with torch.no_grad():
-            out_osm = model_osm(graph_osm, osm_x)
-            out_sdot = model_sdot(graph_sdot, sdot_x)
+            out_osm = model_osm(osm_x, graph_osm)
+            out_sdot = model_sdot(sdot_x, graph_sdot)
         logits = torch.matmul(out_osm, out_sdot.T).flatten()
         loss = criterion(logits, labels)
         val_losses.append(loss.item())

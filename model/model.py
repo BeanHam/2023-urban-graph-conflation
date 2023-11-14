@@ -16,16 +16,15 @@ torch.cuda.manual_seed_all(seed)
 class GCN(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = GCNConv(2, 32)
-        self.conv2 = GCNConv(32, 64)
+        self.conv1 = GCNConv(2, 64)
+        self.conv2 = GCNConv(64, 128)
 
     def forward(self, x, edge_index):
 
         x = self.conv1(x, edge_index)
-        x = F.elu(x)
+        x = F.relu(x)
         x = self.conv2(x, edge_index)
-
-        return z
+        return x
     
 # ---------------------
 # GAT
@@ -33,8 +32,8 @@ class GCN(torch.nn.Module):
 class GAT(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = GATConv(2, 8, 8)
-        self.conv2 = GATConv(8 * 8, 64, heads=1, concat=False)
+        self.conv1 = GATConv(2,16,4,dropout=0.2)
+        self.conv2 = GATConv(16*4,128 ,heads=1, concat=False)
 
     def forward(self, x, edge_index):
         x = self.conv1(x, edge_index)
@@ -48,8 +47,8 @@ class GAT(torch.nn.Module):
 class GraphSAGE(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = SAGEConv(2, 32)
-        self.conv2 = SAGEConv(32, 64)
+        self.conv1 = SAGEConv(2, 64)
+        self.conv2 = SAGEConv(64, 128)
     
     def forward(self, x, edge_index):
         x = self.conv1(x, edge_index)

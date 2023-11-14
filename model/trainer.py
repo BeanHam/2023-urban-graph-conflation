@@ -1,5 +1,6 @@
 import os
 import torch
+import argparse
 import numpy as np
 import networkx as nx
 import torch.nn as nn
@@ -8,6 +9,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
+from torch_geometric.nn import GraphUNet
 from utils import *
 from model import *
 
@@ -19,13 +21,21 @@ torch.cuda.manual_seed_all(seed)
 
 def main():
 
+    #-------------------------
+    # arguments
+    #-------------------------
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model', required=True, help='model name')
+    args = parser.parse_args()
+    model = args.model
+    
     # ---------------------
     # parameters
     # ---------------------
     lr = 2e-3
-    epochs = 100
+    epochs = 200
     batch_size = 1
-    pos_weights = 7
+    pos_weights = 5
     path = 'D:graph-conflation-data/'
     
     # ---------------------
@@ -51,8 +61,18 @@ def main():
     # ---------------------
     print('Load Model...')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model_osm = GCN().to(device)
-    model_sdot = GCN().to(device)
+    if model == 'gcn':
+        model_osm = GCN().to(device)
+        model_sdot = GCN().to(device)
+    elif model == 'gat':
+        model_osm = GAT().to(device)
+        model_sdot = GAT().to(device)
+    elif model == 'graphsage':
+        model_osm = GraphSAGE().to(device)
+        model_sdot = GraphSAGE().to(device)
+    else:
+        model_osm = GraphUNet(2,64,128,3).to(device)
+        model_sdot = GraphUNet(2,64,128,3).to(device)
     optimizer = torch.optim.Adam(list(model_osm.parameters()) + list(model_sdot.parameters()), lr=lr)
     criterion= nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weights))
     es = EarlyStopping(tolerance=10)
@@ -100,9 +120,9 @@ def main():
             print(f' Validation Loss: {round(val_loss, 5)}')
             break
         if es.save_model:     
-            torch.save(model_osm.state_dict(), f'model_states/model_osm_{pos_weights}')
-            torch.save(model_sdot.state_dict(), f'model_states/model_sdot_{pos_weights}')
-            np.save(f'logs/val_losses_{pos_weights}.npy', loss_track)
+            torch.save(model_osm.state_dict(), f'model_states/{model}_osm_{pos_weights}')
+            torch.save(model_sdot.state_dict(), f'model_states/{model}_sdot_{pos_weights}')
+            np.save(f'logs/{model}_losses_{pos_weights}.npy', loss_track)
         
         # ----------------
         # print val loss
