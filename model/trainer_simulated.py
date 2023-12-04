@@ -43,7 +43,10 @@ def main():
     lr = 2e-3
     epochs = 200
     batch_size = 1
-    pos_weights = 5
+    pos_weights = 6.667
+    input_dim = 2
+    hidden_dim = 32
+    output_dim = 64
     path = 'D:graph-conflation-data/'
     
     # ---------------------
@@ -69,19 +72,8 @@ def main():
     # ---------------------
     print('Load Model...')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if model == 'gcn':
-        model_set1 = GCN().to(device)
-        model_set2 = GCN().to(device)
-    elif model == 'gat':
-        model_set1 = GAT().to(device)
-        model_set2 = GAT().to(device)
-    elif model == 'graphsage':
-        model_set1 = GraphSAGE().to(device)
-        model_set2 = GraphSAGE().to(device)
-    else:
-        model_set1 = GraphUNet(2,64,128,3).to(device)
-        model_set2 = GraphUNet(2,64,128,3).to(device)
-    optimizer = torch.optim.Adam(list(model_set1.parameters()) + list(model_set2.parameters()), lr=lr)
+    graphconflator = GraphConflator(input_dim, hidden_dim, output_dim, model)
+    optimizer = torch.optim.Adam(graphconflator.parameters(), lr=lr)
     criterion= nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weights))
     es = EarlyStopping(tolerance=10)
     
@@ -94,12 +86,10 @@ def main():
         # ----------------
         # Training
         # ----------------
-        model_set1.train()
-        model_set2.train()
+        graphconflator.train()
         Train(
             train_dataloader, 
-            model_set1, 
-            model_set2, 
+            graphconflator,
             optimizer, 
             criterion,
             device
@@ -108,12 +98,10 @@ def main():
         # ----------------
         # Validation
         # ----------------
-        model_set1.eval()
-        model_set2.eval()
+        graphconflator.eval()
         val_loss = Eval(
             val_dataloader, 
-            model_set1, 
-            model_set2, 
+            graphconflator,
             criterion,
             device
         )    
@@ -128,9 +116,8 @@ def main():
             print(f' Validation Loss: {round(val_loss, 5)}')
             break
         if es.save_model:     
-            torch.save(model_set1.state_dict(), f'model_states/{model}_set1_{pos_weights}_{simulation}')
-            torch.save(model_set2.state_dict(), f'model_states/{model}_set2_{pos_weights}_{simulation}')
-            np.save(f'logs/{model}_simulation_losses_{pos_weights}_{simulation}.npy', loss_track)
+            torch.save(graphconflator.state_dict(), f'model_states/graphconflator_{model}_{pos_weights}_{simulation}')
+            np.save(f'logs/graphconflator_{model}_simulation_losses_{pos_weights}_{simulation}.npy', loss_track)
         
         # ----------------
         # print val loss

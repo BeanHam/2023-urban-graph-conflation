@@ -55,8 +55,8 @@ class GraphDataset(Dataset):
         set1_path = os.path.join(self.graph_dir, f'simulated-graphs/{self.simulation}/set1/', file)
         set2_path = os.path.join(self.graph_dir, f'simulated-graphs/{self.simulation}/set2/', file)        
         gt_x_path = os.path.join(self.graph_dir, f'simulated-attributes/{self.simulation}/gt/', file+'.json')
-        set1_x_path = os.path.join(self.graph_dir, f'simulated-attributes/{self.simulation}/set1/', file+'.json')
-        set2_x_path = os.path.join(self.graph_dir, f'simulated-attributes/{self.simulation}/set2/', file+'.json')
+        x_set1_path = os.path.join(self.graph_dir, f'simulated-attributes/{self.simulation}/set1/', file+'.json')
+        x_set2_path = os.path.join(self.graph_dir, f'simulated-attributes/{self.simulation}/set2/', file+'.json')
         
         # graphs & edges
         graph_gt = torch.from_numpy(nx.to_numpy_array(nx.read_graph6(gt_path))).float()
@@ -67,17 +67,16 @@ class GraphDataset(Dataset):
         
         # graph attributes
         gt_x = load_attributes(gt_x_path, min_bounds, max_bounds)
-        set1_x = load_attributes(set1_x_path, min_bounds, max_bounds)
-        set2_x = load_attributes(set2_x_path, min_bounds, max_bounds)
+        x_set1 = load_attributes(x_set1_path, min_bounds, max_bounds)
+        x_set2 = load_attributes(x_set2_path, min_bounds, max_bounds)
 
-        return graph_gt, graph_set1, graph_set2, gt_x, set1_x, set2_x
+        return graph_gt, graph_set1, graph_set2, gt_x, x_set1, x_set2
 
 # ---------------------
 # Trainer
 # ---------------------
 def Train(train_data, 
-          model_set1, 
-          model_set2, 
+          graphconflator,
           optimizer, 
           criterion, 
           device):
@@ -85,20 +84,18 @@ def Train(train_data,
     for i, batch in enumerate(tqdm(train_data)):
         
         # load data
-        graph_gt, graph_set1, graph_set2, gt_x, set1_x, set2_x = batch
+        graph_gt, graph_set1, graph_set2, gt_x, x_set1, x_set2 = batch
         graph_gt = graph_gt.squeeze_(0).to(device)
         labels = graph_gt.flatten()
         graph_set1 = graph_set1.squeeze_(0).long().to(device)
         graph_set2 = graph_set2.squeeze_(0).long().to(device)
         gt_x = gt_x.squeeze_(0).to(device)
-        set1_x = set1_x.squeeze_(0).to(device)
-        set2_x = set2_x.squeeze_(0).to(device)
+        x_set1 = x_set1.squeeze_(0).to(device)
+        x_set2 = x_set2.squeeze_(0).to(device)
         
         # make prediction
         optimizer.zero_grad() 
-        out_set1 = model_set1(set1_x, graph_set1)
-        out_set2 = model_set2(set2_x, graph_set2)
-        logits = torch.matmul(out_set1, out_set2.T).flatten()
+        logits = graphconflator(graph_set1, graph_set2, x_set1, x_set2)        
         loss = criterion(logits, labels)
         loss.backward() 
         optimizer.step()
@@ -107,8 +104,7 @@ def Train(train_data,
 # Evaluation
 # ---------------------
 def Eval(val_data, 
-         model_set1, 
-         model_set2, 
+         graphconflator, 
          criterion, 
          device):
 
@@ -126,12 +122,10 @@ def Eval(val_data,
         set2_x = set2_x.squeeze_(0).to(device)
          
         with torch.no_grad():
-            out_set1 = model_set1(set1_x, graph_set1)
-            out_set2 = model_set2(set2_x, graph_set2)
-        logits = torch.matmul(out_set1, out_set2.T).flatten()
+            logits = graphconflator(graph_set1, graph_set2, x_set1, x_set2)
         loss = criterion(logits, labels)
         val_losses.append(loss.item())
-    return np.mean(val_losses) 
+    return np.mean(val_losses)
 
 # ---------------------
 # Early Stop Function
