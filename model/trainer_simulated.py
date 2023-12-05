@@ -23,7 +23,7 @@ torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
 torch.backends.cudnn.deterministic=True
 torch.use_deterministic_algorithms(True)
-# set CUBLAS_WORKSPACE_CONFIG=:16:8
+os.environ["CUBLAS_WORKSPACE_CONFIG"]=":16:8"
 
 def main():
 
@@ -32,9 +32,13 @@ def main():
     #-------------------------
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', required=True, help='model name')
+    parser.add_argument('--logits', required=True, help='model name')
+    parser.add_argument('--pos_weight', required=True, help='model name')
     parser.add_argument('--simulation', required=True, help='model name')
     args = parser.parse_args()
     model = args.model
+    logits = args.logits
+    pos_weight = int(args.pos_weight)
     simulation = args.simulation
     
     # ---------------------
@@ -43,7 +47,6 @@ def main():
     lr = 2e-3
     epochs = 200
     batch_size = 1
-    pos_weights = 6.667
     input_dim = 2
     hidden_dim = 32
     output_dim = 64
@@ -72,10 +75,10 @@ def main():
     # ---------------------
     print('Load Model...')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    graphconflator = GraphConflator(input_dim, hidden_dim, output_dim, model)
+    graphconflator = GraphConflator(input_dim, hidden_dim, output_dim, model, logits).to(device)
     optimizer = torch.optim.Adam(graphconflator.parameters(), lr=lr)
-    criterion= nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weights))
-    es = EarlyStopping(tolerance=10)
+    criterion= nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
+    es = EarlyStopping(tolerance=5)
     
     # ---------------------
     # training
@@ -116,8 +119,8 @@ def main():
             print(f' Validation Loss: {round(val_loss, 5)}')
             break
         if es.save_model:     
-            torch.save(graphconflator.state_dict(), f'model_states/graphconflator_{model}_{pos_weights}_{simulation}')
-            np.save(f'logs/graphconflator_{model}_simulation_losses_{pos_weights}_{simulation}.npy', loss_track)
+            torch.save(graphconflator.state_dict(), f'model_states/graphconflator_{model}_{logits}_{pos_weight}_{simulation}')
+            np.save(f'logs/graphconflator_{model}_{logits}_{pos_weight}_{simulation}.npy', loss_track)
         
         # ----------------
         # print val loss

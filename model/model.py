@@ -1,14 +1,21 @@
+import os
 import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, GATConv, SAGEConv
 
-seed=816
+# ---------------------------
+# seeding for reproducibility
+# ---------------------------
+seed = 100
 np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
+torch.backends.cudnn.deterministic=True
+torch.use_deterministic_algorithms(True)
+os.environ["CUBLAS_WORKSPACE_CONFIG"]=":16:8"
 
 # ---------------------
 # Cross Attention
@@ -59,7 +66,7 @@ class GCN(torch.nn.Module):
 # GAT
 # ---------------------
 class GAT(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, input_dim, hidden_dim, output_dim):
         super().__init__()
         self.conv1 = GATConv(input_dim, hidden_dim,4,dropout=0.2)
         self.conv2 = GATConv(hidden_dim*4, output_dim, heads=1, concat=False)
@@ -74,7 +81,7 @@ class GAT(torch.nn.Module):
 # GraphSAGE
 # ---------------------    
 class GraphSAGE(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, input_dim, hidden_dim, output_dim):
         super().__init__()
         self.conv1 = SAGEConv(input_dim, hidden_dim)
         self.conv2 = SAGEConv(hidden_dim, output_dim)
@@ -95,9 +102,11 @@ class GraphConflator(torch.nn.Module):
                  input_dim, 
                  hidden_dim, 
                  output_dim,
-                 model):
+                 model,
+                 logits):
         super().__init__()
         
+        self.logits = logits
         if model == 'gcn':
             self.conv1 = GCN(input_dim, hidden_dim, output_dim)
             self.conv2 = GCN(input_dim, hidden_dim, output_dim)        
@@ -120,21 +129,24 @@ class GraphConflator(torch.nn.Module):
         out_set1 = self.conv1(x_set1, graph_set1)
         out_set2 = self.conv2(x_set2, graph_set2)
         
-        # 1. 
-        #logits = torch.matmul(out_set1, out_set2.T).flatten()
-        
-        # 2
-        #logits = 0.25*(
-        #    torch.matmul(out_set1, out_set1.T)+\
-        #    torch.matmul(out_set1, out_set1.T)+\
-        #    torch.matmul(out_set1, out_set1.T)+\
-        #    torch.matmul(out_set1, out_set1.T)
-        #).flatten()
-        
-        
-        # 3. 
-        out_set1 = self.cross1(out_set1, out_set2)
-        out_set2 = self.cross2(out_set2, out_set1)        
-        logits = torch.matmul(out_set1, out_set2.T).flatten()        
+        if self.logits == 'simple':
+            logits = 0.5*(
+                torch.matmul(out_set1, out_set2.T)+\
+                torch.matmul(out_set2, out_set1.T)
+            )
+        elif self.logits == 'average':
+            logits = 0.25*(
+                torch.matmul(out_set1, out_set1.T)+\
+                torch.matmul(out_set2, out_set2.T)+\
+                torch.matmul(out_set1, out_set2.T)+\
+                torch.matmul(out_set2, out_set1.T)
+            )
+        else:        
+            out_set1 = self.cross1(out_set1, out_set2)
+            out_set2 = self.cross2(out_set2, out_set1)        
+            logits = 0.5*(
+                torch.matmul(out_set1, out_set2.T)+\
+                torch.matmul(out_set2, out_set1.T)
+            )    
         
         return logits      

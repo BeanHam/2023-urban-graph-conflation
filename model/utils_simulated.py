@@ -16,7 +16,7 @@ torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
 torch.backends.cudnn.deterministic=True
 torch.use_deterministic_algorithms(True)
-# set CUBLAS_WORKSPACE_CONFIG=:16:8
+os.environ["CUBLAS_WORKSPACE_CONFIG"]=":16:8"
 
 # ---------------------
 # Load Attributes
@@ -96,7 +96,7 @@ def Train(train_data,
         # make prediction
         optimizer.zero_grad() 
         logits = graphconflator(graph_set1, graph_set2, x_set1, x_set2)        
-        loss = criterion(logits, labels)
+        loss = criterion(logits.flatten(), labels)
         loss.backward() 
         optimizer.step()
         
@@ -112,18 +112,18 @@ def Eval(val_data,
     for i, batch in enumerate(val_data):
         
         # load data
-        graph_gt, graph_set1, graph_set2, gt_x, set1_x, set2_x = batch
+        graph_gt, graph_set1, graph_set2, gt_x, x_set1, x_set2 = batch
         graph_gt = graph_gt.squeeze_(0).to(device)
         labels = graph_gt.flatten()
         graph_set1 = graph_set1.squeeze_(0).long().to(device)
         graph_set2 = graph_set2.squeeze_(0).long().to(device)
         gt_x = gt_x.squeeze_(0).to(device)
-        set1_x = set1_x.squeeze_(0).to(device)
-        set2_x = set2_x.squeeze_(0).to(device)
+        x_set1 = x_set1.squeeze_(0).to(device)
+        x_set2 = x_set2.squeeze_(0).to(device)
          
         with torch.no_grad():
             logits = graphconflator(graph_set1, graph_set2, x_set1, x_set2)
-        loss = criterion(logits, labels)
+        loss = criterion(logits.flatten(), labels)
         val_losses.append(loss.item())
     return np.mean(val_losses)
 
